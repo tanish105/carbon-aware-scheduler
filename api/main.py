@@ -1,8 +1,9 @@
+# api/main.py
 from fastapi import FastAPI
-from api.db import SessionLocal
-from api.models import job
+from api.routes import job_routes
 
-app = FastAPI()
+app = FastAPI(title="Carbon Aware Scheduler API")
+app.include_router(job_routes.router)
 
 @app.get("/")
 def read_root():

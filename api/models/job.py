@@ -28,3 +28,12 @@ class Job(Base):
     started_at = Column(DateTime(timezone=True))
     completed_at = Column(DateTime(timezone=True))
     carbon_savings = Column(Float, default=0.0)
+
+class CarbonData(Base):
+    __tablename__ = "carbon_data"
+
+    id = Column(Integer, primary_key=True, index=True)
+    zone = Column(String, nullable=False)
+    datetime = Column(DateTime(timezone=True), nullable=False)
+    carbon_intensity = Column(Float, nullable=False)
+    updated_at = Column(DateTime(timezone=True), server_default=func.now())

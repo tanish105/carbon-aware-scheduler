@@ -21,4 +21,4 @@ class JobResponse(BaseModel):
     soft_deadline: Optional[datetime] = None
 
     class Config:
-        orm_mode = True
+        from_attributes = True

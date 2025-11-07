@@ -23,6 +23,8 @@ class Job(Base):
     expected_runtime_min = Column(Integer)
     urgency = Column(String)
     soft_deadline = Column(DateTime)
+    preferred_zone = Column(String, default="us-west1")
+    data_center_provider = Column(String, default="gcp")  
     state = Column(Enum(JobState), default=JobState.waiting)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     started_at = Column(DateTime(timezone=True))

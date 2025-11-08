@@ -15,20 +15,25 @@ app = Celery(
     backend="rpc://",
 )
 
+app.conf.task_default_queue = "scheduler_queue"
+
 # -------------- periodic setup --------------
 @app.on_after_configure.connect
 def setup_periodic_tasks(sender, **kwargs):
-    sender.add_periodic_task(300.0, schedule_jobs.s(), name="Schedule waiting jobs every 5m")
+    sender.add_periodic_task(60.0, schedule_jobs.s(), name="Schedule waiting jobs every 5m")
 
 # -------------- helper logic --------------
 def get_latest_intensity(db: Session, zone: str) -> float | None:
     record = (
         db.query(CarbonData)
-        .filter(CarbonData.zone == zone)
+        .filter(CarbonData.zone.ilike(f"%{zone}%"))
         .order_by(CarbonData.datetime.desc())
         .first()
     )
+    if record:
+        print(f"[Scheduler] Found CI={record.carbon_intensity} for zone={record.zone}")
     return record.carbon_intensity if record else None
+
 
 # -------------- main task --------------
 @app.task
@@ -48,7 +53,14 @@ def schedule_jobs():
 
             # --- Decision logic ---
             run = False
-            deadline_soon = job.soft_deadline and (job.soft_deadline - now) < timedelta(hours=1)
+            deadline_soon = False
+            if job.soft_deadline:
+                # Convert soft_deadline to timezone-aware UTC
+                if job.soft_deadline.tzinfo is None:
+                    job_deadline = job.soft_deadline.replace(tzinfo=timezone.utc)
+                else:
+                    job_deadline = job.soft_deadline
+                deadline_soon = (job_deadline - now) < timedelta(hours=1)
 
             if job.urgency == "high":
                 run = True
@@ -69,7 +81,7 @@ def schedule_jobs():
                 # send to execution queue (worker.tasks.execute_job)
                 from celery import Celery
                 exec_app = Celery("executor", broker=os.getenv("RABBITMQ_URL", "amqp://guest:guest@localhost:5672//"))
-                exec_app.send_task("tasks.execute_job", args=[job.id])
+                exec_app.send_task("tasks.execute_job", args=[job.id], queue="worker_queue")
             else:
                 print(f"[Scheduler] Delaying job {job.name}, CI={ci}")
 

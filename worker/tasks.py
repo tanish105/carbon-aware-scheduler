@@ -15,6 +15,9 @@ app = Celery(
     backend="rpc://"
 )
 
+app.conf.task_default_queue = "worker_queue"
+
+
 @app.task(name="tasks.enqueue_job")
 def enqueue_job(job_id):
     print(f"[Celery] Received job {job_id} for scheduling.")
@@ -41,7 +44,7 @@ def execute_job(job_id):
 
         # Simulate execution time
         print(f"[Worker] Running command: {job.command}")
-        time.sleep(5)  # placeholder for actual work
+        time.sleep(20)  # placeholder for actual work
 
         # Mark as completed
         job.state = JobState.completed

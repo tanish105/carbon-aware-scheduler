@@ -20,6 +20,9 @@ app = Celery(
     backend="rpc://"
 )
 
+# Assign to its own queue
+app.conf.task_default_queue = "carbon_data_queue"
+
 # -----------------------------
 # Environment Variables
 # -----------------------------
@@ -33,7 +36,7 @@ DATA_CENTER_PROVIDER = os.getenv("DATA_CENTER_PROVIDER", "gcp")
 @app.on_after_configure.connect
 def setup_periodic_tasks(sender, **kwargs):
     # Run every 5 minutes (300 seconds)
-    sender.add_periodic_task(300.0, fetch_carbon_data.s(), name="Fetch carbon data every 5m")
+    sender.add_periodic_task(60.0, fetch_carbon_data.s(), name="Fetch carbon periodically")
 
 # -----------------------------
 # Main Task
@@ -70,7 +73,7 @@ def fetch_carbon_data():
         data = response.json()
         carbon_intensity = data.get("carbonIntensity")
         timestamp = data.get("datetime", now)
-        zone = data.get("zone", DATA_CENTER_REGION)
+        zone = DATA_CENTER_REGION
 
         if not carbon_intensity:
             print("[Fetcher] Warning: No carbon intensity data in response.")

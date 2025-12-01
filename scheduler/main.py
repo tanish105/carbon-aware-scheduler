@@ -20,7 +20,7 @@ app.conf.task_default_queue = "scheduler_queue"
 # -------------- periodic setup --------------
 @app.on_after_configure.connect
 def setup_periodic_tasks(sender, **kwargs):
-    sender.add_periodic_task(60.0, schedule_jobs.s(), name="Schedule waiting jobs every 5m")
+    sender.add_periodic_task(10.0, schedule_jobs.s(), name="Schedule waiting jobs every 10s")
 
 # -------------- helper logic --------------
 def get_latest_intensity(db: Session, zone: str) -> float | None:
@@ -43,7 +43,31 @@ def schedule_jobs():
     try:
         now = datetime.now(timezone.utc)
         waiting_jobs = db.query(Job).filter(Job.state == JobState.waiting).all()
-        print(f"[Scheduler] Checking {len(waiting_jobs)} waiting jobs...")
+        
+        # Sort jobs by priority: High > Deadline > Medium > Low
+        # We need to calculate 'deadline_soon' for sorting, or just use urgency.
+        # Let's define a priority key.
+        def job_priority(j):
+            # 0 = Highest Priority
+            if j.urgency == "high":
+                return 0
+            
+            # Check deadline
+            if j.soft_deadline:
+                if j.soft_deadline.tzinfo is None:
+                    d = j.soft_deadline.replace(tzinfo=timezone.utc)
+                else:
+                    d = j.soft_deadline
+                if (d - now) < timedelta(hours=1):
+                    return 1 # Deadline soon
+            
+            if j.urgency == "medium":
+                return 2
+            return 3 # Low
+            
+        waiting_jobs.sort(key=job_priority)
+        
+        print(f"[Scheduler] Checking {len(waiting_jobs)} waiting jobs (Sorted by Priority)...")
 
         for job in waiting_jobs:
             ci = get_latest_intensity(db, job.preferred_zone)

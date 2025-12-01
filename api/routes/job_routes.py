@@ -5,7 +5,7 @@ from api.db import SessionLocal
 from api.models.job import Job, JobState
 from api.schema.job import JobCreate, JobResponse
 from celery import Celery
-from datetime import datetime
+from datetime import datetime, timezone
 
 router = APIRouter(prefix="/jobs", tags=["Jobs"])
 
@@ -33,7 +33,7 @@ def create_job(job_data: JobCreate, db: Session = Depends(get_db)):
         urgency=job_data.urgency,
         soft_deadline=job_data.soft_deadline,
         state=JobState.waiting,
-        created_at=datetime.utcnow(),
+        created_at=datetime.now(timezone.utc),
     )
     db.add(new_job)
     db.commit()

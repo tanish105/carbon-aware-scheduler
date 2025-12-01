@@ -19,6 +19,8 @@ class JobResponse(BaseModel):
     urgency: str
     created_at: datetime
     soft_deadline: Optional[datetime] = None
+    started_at: Optional[datetime] = None
+    completed_at: Optional[datetime] = None
 
     class Config:
         from_attributes = True
